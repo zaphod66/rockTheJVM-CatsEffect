@@ -1,4 +1,5 @@
 val scala2Version = "2.13.8"
+val scala3Version = "3.1.0"
 
 lazy val root = project
   .in(file("."))
@@ -6,7 +7,7 @@ lazy val root = project
     name := "RockTheJVM CatsEffect",
     version := "0.0.1-SNAPSHOT",
 
-    scalaVersion := scala2Version,
+    scalaVersion := scala3Version,
 
     libraryDependencies += "org.typelevel" %% "cats-core" % "2.6.1",
     libraryDependencies += "org.typelevel" %% "cats-free" % "2.6.1",

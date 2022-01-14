@@ -1,8 +1,8 @@
 package playground
 
-object Stuff {
+import cats.effect.{IO, IOApp}
 
-  def main(args: Array[String]): Unit = {
-    println("Hello rockTheJVM-CatsEffect")
-  }
+object Stuff extends IOApp.Simple {
+  override def run: IO[Unit] =
+    IO.println("rockTheJVM-CatsEffect")
 }
