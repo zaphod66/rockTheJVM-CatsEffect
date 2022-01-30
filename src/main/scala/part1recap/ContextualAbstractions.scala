@@ -30,10 +30,17 @@ object ContextualAbstractions extends IOApp.Simple {
   val numbers: List[Int] = (1 to 10).toList
   val sum10: Int = combineAll(numbers)
 
-  given stringMonoid: MyMonoid[String] with {
+//  given MyMonoid[String] with {
+//    override def combine(x: String, y: String): String = x + y
+//    override def empty: String = ""
+//  }
+
+  val stringMonoid = new MyMonoid[String] {
     override def combine(x: String, y: String): String = x + y
     override def empty: String = ""
   }
+
+  given MyMonoid[String] = stringMonoid
 
   val strings: String = combineAll(List("a", "bb", "ccc"))
 
@@ -68,7 +75,8 @@ object ContextualAbstractions extends IOApp.Simple {
   val sum10_v2: Int = numbers.reduceAll
 
   override def run: IO[Unit] =
-    IO.println("ContextualAbstractions")
+    IO.println("ContextualAbstractions") *>
+      IO.println(s"strings: $strings")
 }
 
 // type class pattern in Scala3
