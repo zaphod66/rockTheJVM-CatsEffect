@@ -23,7 +23,9 @@ object IOParallelism extends IOApp.Simple {
 
   val io1Par: IO.Par[String] = Parallel[IO].parallel(io1)
   val io2Par: IO.Par[String] = Parallel[IO].parallel(io2)
-  import cats.effect.implicits._
+
+  import cats.effect.implicits.commutativeApplicativeForParallelF
+
   val composedIO2Par: IO.Par[String] = combine(io1Par, io2Par)
   val composedIO2: IO[String] = Parallel[IO].sequential(composedIO2Par)
 
