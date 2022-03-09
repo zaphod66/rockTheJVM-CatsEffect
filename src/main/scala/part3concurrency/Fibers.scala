@@ -1,4 +1,4 @@
-package part3concurrecny
+package part3concurrency
 
 import cats.effect.kernel.Outcome.{Canceled, Errored, Succeeded}
 import cats.effect.{IO, IOApp, Outcome}
