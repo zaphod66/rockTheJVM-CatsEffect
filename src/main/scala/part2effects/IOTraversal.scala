@@ -27,5 +27,6 @@ object IOTraversal extends IOApp.Simple{
 
   override def run: IO[Unit] =
     resultIO.map(_.sum).debug.void *>
+      IO("------------").debug *>
       resultIOPar.map(_.sum).debug.void
 }
