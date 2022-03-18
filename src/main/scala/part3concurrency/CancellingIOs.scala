@@ -18,7 +18,6 @@ object CancellingIOs extends IOApp.Simple {
   val atomicPaymentSystem1: IO[String] = IO.uncancelable(_ => paymentSystem)  // "masking"
   val atomicPaymentSystem2: IO[String] = paymentSystem.uncancelable           // same
 
-
   def canceller[T](io: IO[T], duration: FiniteDuration): IO[Unit] = for {
     fiber <- io.start
     _ <- IO.sleep(duration) *> IO("attempting cancellation...").debug *> fiber.cancel
@@ -53,6 +52,16 @@ object CancellingIOs extends IOApp.Simple {
   val authProg2: IO[Unit] = canceller(authFlow2,  500.millis)
   val authProg3: IO[Unit] = canceller(authFlow2, 1500.millis)
 
+  val threeStepProg: IO[Unit] = {
+    val sequence = IO.uncancelable { poll =>
+      poll(IO("cancelable 1").debug *> IO.sleep(1.second)) *>
+      IO("uncancelable").debug *> IO.sleep(1.second) *>
+      poll(IO("cancelable 2").debug *> IO.sleep(1.second))
+    }
+
+    canceller(sequence, 1500.millis)
+  }
+
   override def run: IO[Unit] =
     IO("megaCancel----------").debug *>
     megaCancel *>
@@ -66,5 +75,7 @@ object CancellingIOs extends IOApp.Simple {
     authProg2 *>
     IO("authProg3 -----------").debug *>
     authProg3 *>
+    IO("threeStepProg -----------").debug *>
+    threeStepProg *>
     IO.unit
 }
