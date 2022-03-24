@@ -30,7 +30,7 @@ object BlockingIOs extends IOApp.Simple {
     _ <- IO("3").debug
   } yield ()
 
-  val manyCedes1: IO[Int] = (1 to 99).map(IO.pure).reduce(_.debug *> IO.cede *> _.debug)
+  val manyCedes1: IO[Int] = (1 to 49).map(IO.pure).reduce(_.debug *> IO.cede *> _.debug)
 
   val ecResource: Resource[IO, ExecutionContext] = Resource.make(IO(ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(4)))) {
     ec => IO(ec.asInstanceOf[ExecutionContextExecutorService].shutdown()) }
