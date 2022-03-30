@@ -30,6 +30,7 @@ object Resources extends IOApp.Simple {
   } yield ()
 
   def openFileScanner(path: String): IO[Scanner] = IO(new Scanner(new FileReader(new File(path))))
+  def fileScannerResource(path: String): (Scanner => IO[Unit]) => Resource[IO, Scanner] = Resource.make(IO(s"open file at $path").debug *> openFileScanner(path))
 
   def readLines(scanner: Scanner): IO[Unit] =
     if (scanner.hasNextLine) IO(scanner.nextLine()).debug *> IO.sleep(100.millis) >> readLines(scanner)
