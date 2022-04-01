@@ -1,9 +1,9 @@
 package part4coordination
 
-import cats.effect.{IO, IOApp, Deferred}
-
+import cats.effect.{Deferred, IO, IOApp, Ref}
 import utils.debug
-import scala.concurrent.duration._
+
+import scala.concurrent.duration.*
 
 object Defers extends IOApp.Simple {
 
@@ -24,7 +24,29 @@ object Defers extends IOApp.Simple {
 
     for {
       s <- Deferred[IO, Int]
-      _ <- IO.race(consumer(s), producer(s))
+      _ <- IO.both(consumer(s), producer(s))
+    } yield ()
+  }
+
+  import cats.syntax.traverse._
+
+  def notifierWithRef(): IO[Unit] = {
+    val fileParts = List("I ", "love S", "cala", " with Cat", "s Effect!<EOF>")
+
+    def downloadFile(contentRef: Ref[IO, String]): IO[Unit] =
+      fileParts.map { part =>
+        IO(s"[download] got '$part'").debug *> IO.sleep(1.second) >> contentRef.update(_ + part)
+      }.sequence.void
+
+    def notifyComplete(contentRef: Ref[IO, String]): IO[Unit] = for {
+      fileContent <- contentRef.get
+      _ <- if (fileContent.endsWith("<EOF>")) IO("[notifier] Download complete got: '$fileContent'.").debug
+           else IO("[notifier] downloading ...").debug *> IO.sleep(600.millis) *> notifyComplete(contentRef)  // busy waiting
+    } yield ()
+
+    for {
+      contentRef <- Ref[IO].of("")
+      _ <- IO.both(downloadFile(contentRef), notifyComplete(contentRef))
     } yield ()
   }
 
@@ -33,5 +55,7 @@ object Defers extends IOApp.Simple {
     IO("1-----------").debug *>
     demoDeferred() *>
     IO("2-----------").debug *>
+    notifierWithRef() *>
+    IO("3-----------").debug *>
     IO.unit
 }

@@ -107,9 +107,7 @@ object Refs extends IOApp.Simple {
 
   def timedRunner(io: IO[Unit], duration: FiniteDuration): IO[Unit] = {
     for {
-      fib <- io.start
-      _   <- IO.sleep(duration) *> fib.cancel
-      _   <- fib.join
+      _ <- IO.race(io, IO.sleep(duration))
     } yield ()
   }
 
