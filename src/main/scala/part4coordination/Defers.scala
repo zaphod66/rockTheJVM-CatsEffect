@@ -40,8 +40,8 @@ object Defers extends IOApp.Simple {
 
     def notifyComplete(contentRef: Ref[IO, String]): IO[Unit] = for {
       fileContent <- contentRef.get
-      _ <- if (fileContent.endsWith("<EOF>")) IO("[notifier] Download complete got: '$fileContent'.").debug
-           else IO("[notifier] downloading ...").debug *> IO.sleep(600.millis) *> notifyComplete(contentRef)  // busy waiting
+      _ <- if (fileContent.endsWith("<EOF>")) IO(s"[notifier] Download complete got: '$fileContent'.").debug
+           else IO(s"[notifier] downloading ... Got so far '$fileContent'.").debug *> IO.sleep(600.millis) *> notifyComplete(contentRef)  // busy waiting
     } yield ()
 
     for {
