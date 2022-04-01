@@ -57,6 +57,60 @@ object Refs extends IOApp.Simple {
 
   val list = List("I love cats effect", "This ref thing is useless", "This is a lot of code")
 
+  import scala.concurrent.duration._
+
+  def ticklingClockImpure(): IO[Unit] = {
+    var ticks: Long = 0L
+
+    def tickingClock: IO[Unit] = for {
+      _ <- IO.sleep(1.second)
+      _ <- IO(System.currentTimeMillis()).debug
+      _ <- IO(ticks += 1)
+      _ <- tickingClock
+    } yield ()
+
+    def printTicks: IO[Unit] = for {
+      _ <- IO.sleep(5.seconds)
+      _ <- IO(s"TICKS: $ticks").debug
+      _ <- printTicks
+    } yield ()
+
+    for {
+      _ <- (tickingClock, printTicks).parTupled
+    } yield ()
+  }
+
+  def ticklingClockPure(): IO[Unit] = {
+
+    def tickingClock(ticks: Ref[IO, Long]): IO[Unit] = for {
+      _ <- IO.sleep(1.second)
+      _ <- IO(System.currentTimeMillis()).debug
+      _ <- ticks.update(_ + 1)
+      _ <- tickingClock(ticks)
+    } yield ()
+
+    def printTicks(ticks: Ref[IO, Long]): IO[Unit] = for {
+      _ <- IO.sleep(5.seconds)
+      t <- ticks.get
+      _ <- IO(s"TICKS: $t").debug
+      _ <- printTicks(ticks)
+    } yield ()
+
+
+    for {
+      ticks <- IO.ref(0L)
+      _     <- (tickingClock(ticks), printTicks(ticks)).parTupled
+    } yield ()
+  }
+
+  def timedRunner(io: IO[Unit], duration: FiniteDuration): IO[Unit] = {
+    for {
+      fib <- io.start
+      _   <- IO.sleep(duration) *> fib.cancel
+      _   <- fib.join
+    } yield ()
+  }
+
   override def run: IO[Unit] =
     IO("Refs").debug *>
     IO("1-----------").debug *>
@@ -64,5 +118,9 @@ object Refs extends IOApp.Simple {
     IO("2-----------").debug *>
     concurrentWordCountPure(list).debug *>
     IO("3-----------").debug *>
+    timedRunner(ticklingClockImpure(), 11.seconds) *>
+    IO("4-----------").debug *>
+    timedRunner(ticklingClockPure(), 11.seconds) *>
+    IO("4-----------").debug *>
     IO.unit
 }
