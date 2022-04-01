@@ -19,7 +19,9 @@ object Refs extends IOApp.Simple {
   // getting
   val value_0: IO[Int] = atomicRef_1.flatMap( ref => ref.get )
 
-  import cats.syntax.parallel._
+//  import cats.syntax.parallel._
+  import cats.syntax.parallel.catsSyntaxTuple2Parallel
+  import cats.syntax.parallel.catsSyntaxParallelSequence1
 
   def concurrentWordCountImpure(list: List[String]): IO[Int] = {
     var count = 0
@@ -121,6 +123,6 @@ object Refs extends IOApp.Simple {
     timedRunner(ticklingClockImpure(), 11.seconds) *>
     IO("4-----------").debug *>
     timedRunner(ticklingClockPure(), 11.seconds) *>
-    IO("4-----------").debug *>
+    IO("5-----------").debug *>
     IO.unit
 }
