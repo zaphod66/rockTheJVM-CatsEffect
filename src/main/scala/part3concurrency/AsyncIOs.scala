@@ -15,14 +15,14 @@ object AsyncIOs extends IOApp.Simple {
 
   type Callback[A] = Either[Throwable, A] => Unit
 
-  def computeSomething(): Int = {
-    println(s"[${Thread.currentThread().getName}] computing...")
+  def computeSomething(id: Int)(): Int = {
+    println(s"[${Thread.currentThread().getName}] ($id) computing...")
     Thread.sleep(1000)
-    println(s"[${Thread.currentThread().getName}] ...computing")
+    println(s"[${Thread.currentThread().getName}] ($id) ...computing")
     42
   }
-  def computeSomethingEither(): Either[Throwable, Int] = Try {
-    computeSomething()
+  def computeSomethingEither(id: Int = 0)(): Either[Throwable, Int] = Try {
+    computeSomething(id)()
   }.toEither
 
   def asyncComputeIO[A](thunk: () => Either[Throwable, A])(tp: ExecutorService): IO[A] = IO.async_ { cb =>
@@ -39,7 +39,7 @@ object AsyncIOs extends IOApp.Simple {
     }
   }
 
-  lazy val computeFuture: Future[Int] = Future { computeSomething() }
+  lazy val computeFuture: Future[Int] = Future { computeSomething(3)() }
 
   def futureToIO[A](future: => Future[A])(using ec: ExecutionContext): IO[A] = IO.async_ { cb =>
     future.onComplete( tryResult =>
@@ -52,7 +52,7 @@ object AsyncIOs extends IOApp.Simple {
   import scala.concurrent.duration._
 
   // FULL ASYNC call (you have also control on cancellation, meaning a finalizer is called)
-  def demoAsyncComputation(cancel: Boolean): IO[Int] = {
+  def demoAsyncComputation(id: Int, cancel: Boolean): IO[Int] = {
     val asyncIO: IO[Int] = IO.async[Int] { (cb: Callback[Int]) =>
       /*
       - finalizer in case of cancellation
@@ -65,38 +65,36 @@ object AsyncIOs extends IOApp.Simple {
 
       IO {
         threadPool.execute { () =>
-          val result = computeSomethingEither()
+          val result = computeSomethingEither(id)()
           cb(result)
         }
       }.as(Some(IO("Called on cancellation!").debug.void))
     }
 
-    import cats.effect.unsafe.implicits.global
-
-    for {
+    (for {
       fib <- asyncIO.start
       _   <- IO.sleep(500.millis) *> (if (cancel) IO("Cancelling!").debug *> fib.cancel else IO.unit)
       out <- fib.join
     } yield out match {
-      case Succeeded(v) => v.unsafeRunSync()
-      case Errored(_)   => 0
-      case Canceled()   => -1
-    }
+      case Succeeded(v) => v
+      case Errored(_)   => IO(0)
+      case Canceled()   => IO(-1)
+    }).flatten
   }
 
   override def run: IO[Unit] =
     IO("1---------").debug *>
-    asyncComputeIO(computeSomethingEither)(threadPool).debug *>
+    asyncComputeIO(computeSomethingEither(1))(threadPool).debug *>
     IO("2---------").debug *>
-    asyncToIO(computeSomething)(ec).debug *>
+    asyncToIO(computeSomething(2))(ec).debug *>
     IO("3---------").debug *>
     futureToIO(computeFuture).debug *>
     IO("4---------").debug *>
     IO.fromFuture(IO(computeFuture)).debug *>
     IO("5---------").debug *>
-    demoAsyncComputation(true).debug *>
+    demoAsyncComputation(4, true).debug *>
     IO("6---------").debug *>
-    demoAsyncComputation(false).debug *>
+    demoAsyncComputation(5, false).debug *>
     IO("7---------").debug *>
     IO(threadPool.shutdown())
 }
