@@ -1,7 +1,7 @@
 package part4coordination
 
 import cats.effect.{IO, IOApp, Ref}
-import utils.debug
+import utils._
 
 object Refs extends IOApp.Simple {
 
@@ -105,12 +105,6 @@ object Refs extends IOApp.Simple {
     } yield ()
   }
 
-  def timedRunner(io: IO[Unit], duration: FiniteDuration): IO[Unit] = {
-    for {
-      _ <- IO.race(io, IO.sleep(duration))
-    } yield ()
-  }
-
   override def run: IO[Unit] =
     IO("Refs").debug *>
     IO("1-----------").debug *>
@@ -118,9 +112,9 @@ object Refs extends IOApp.Simple {
     IO("2-----------").debug *>
     concurrentWordCountPure(list).debug *>
     IO("3-----------").debug *>
-    timedRunner(ticklingClockImpure(), 11.seconds) *>
+    timedRun(ticklingClockImpure(), 11.seconds) *>
     IO("4-----------").debug *>
-    timedRunner(ticklingClockPure(), 11.seconds) *>
+    timedRun(ticklingClockPure(), 11.seconds) *>
     IO("5-----------").debug *>
     IO.unit
 }

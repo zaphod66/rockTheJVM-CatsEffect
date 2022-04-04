@@ -7,18 +7,10 @@ import scala.concurrent.duration.*
 
 object RacingIOs extends IOApp.Simple {
 
-  import utils.debug
+  import utils.{debug, runWithSleep}
 
-  def runWithSleep[A](value: A, duration: FiniteDuration): IO[A] =
-    (
-      IO(s"starting computation for: $value").debug >>
-      IO.sleep(duration) >>
-      IO(s"computation finished for: $value").debug >>
-      IO(value)
-    ).onCancel(IO(s"computation canceled for: $value").debug.void)
-
-  val v1 = runWithSleep(42, 1.second)
-  val v2 = runWithSleep("Name", 2.seconds)
+  val v1: IO[Int] = runWithSleep(42, 1.second)
+  val v2: IO[String] = runWithSleep("Name", 2.seconds)
 
   def testRace: IO[String] = {
     val first = IO.race(v1, v2)
