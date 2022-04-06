@@ -1,5 +1,6 @@
 package part4coordination
 
+import cats.effect.Outcome.{ Canceled, Errored, Succeeded }
 import cats.effect.{Deferred, IO, IOApp, Ref}
 import cats.syntax.parallel.*
 
@@ -18,7 +19,9 @@ object Mutex {
 
   def createSignal(): IO[Signal] = Deferred[IO, Unit]
 
-  def create: IO[Mutex] = Ref[IO].of(unlocked).map { state /* (state: Ref[IO, State]) */ =>
+  def create: IO[Mutex] = Ref[IO].of(unlocked).map(createMutexWithCancel)
+
+  def createMutexWithoutCancel(state: Ref[IO, State]): Mutex =
     new Mutex {
       /*
         - if the mutex is unlocked, state becomes (true, [])
@@ -45,9 +48,37 @@ object Mutex {
             val (s1, q1) = q.dequeue
             (State(true, q1), s1.complete(()).void)
           }
-        }.flatten
+      }.flatten
     }
-  }
+
+  def createMutexWithCancel(state: Ref[IO, State]): Mutex =
+    new Mutex {
+      override def acquire: IO[Unit] = IO.uncancelable { poll =>
+        createSignal().flatMap { signal =>
+
+          val cleanup = state.modify {
+            case State(locked, q0) =>
+              val q1 = q0.filterNot(_ eq signal)
+              (State(locked, q1), release)
+          }.flatten
+
+          state.modify {
+            case State(false, _) => (State(locked = true, Queue.empty[Signal]), IO.unit)
+            case State(true, q) => (State(locked = true, q.enqueue(signal)), poll(signal.get).onCancel(cleanup))
+          }.flatten
+        }
+      }
+
+      override def release: IO[Unit] = state.modify { // release shouldn't be cancelable and modify is already atomic
+        case State(false, _) => (unlocked, IO.unit)
+        case State(true, q) =>
+          if (q.isEmpty) (unlocked, IO.unit)
+          else {
+            val (s1, q1) = q.dequeue
+            (State(true, q1), s1.complete(()).void)
+          }
+      }.flatten
+    }
 }
 
 object MutexRunner extends IOApp.Simple {
@@ -79,6 +110,25 @@ object MutexRunner extends IOApp.Simple {
     res <- (1 to 10).toList.parTraverse(id => createLockingTask(id, mut))
   } yield res
 
+  def createCancellingTask(id: Int, mutex: Mutex): IO[Int] = {
+    if (id % 2 == 0) createLockingTask(id, mutex)
+    else for {
+      fib <- createLockingTask(id, mutex).onCancel(IO(s"[task $id] got cancelled").debug.void).start
+      _   <- IO.sleep(500.millis) *> fib.cancel
+      out <- fib.join
+      res <- out match {
+        case Succeeded(effect) => effect
+        case Errored(_)        => IO(-1)
+        case Canceled()        => IO(-2)
+      }
+    } yield res
+  }
+
+  def runCancellingTasks(): IO[List[Int]] = for {
+    mut <- Mutex.create
+    res <- (1 to 10).toList.parTraverse(id => createCancellingTask(id, mut))
+  } yield res
+
   override def run: IO[Unit] =
     IO("Mutex").debug *>
       IO("1-----------").debug *>
@@ -86,5 +136,7 @@ object MutexRunner extends IOApp.Simple {
       IO("2-----------").debug *>
       runLockingTasks().debug *>
       IO("3-----------").debug *>
+      runCancellingTasks().debug *>
+      IO("4-----------").debug *>
       IO.unit
 }
