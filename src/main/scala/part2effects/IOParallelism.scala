@@ -5,9 +5,12 @@ import cats.{Apply, Parallel}
 import cats.effect.{IO, IOApp}
 import utils.debug
 
+import scala.concurrent.duration._
+
 object IOParallelism extends IOApp.Simple {
 
-  override def run: IO[Unit] = composedIO1.map(println) *>
+  override def run: IO[Unit] =
+    composedIO1.map(println) *>
     composedIO2.debug.map(println) *>
     composedIO3.debug.map(println) *>
     composedIO4.debug.map(println) *>
@@ -36,5 +39,5 @@ object IOParallelism extends IOApp.Simple {
   val composedIO3: IO[String] = (io1, io2).parMapN((a, b) => s"$a - $b")
 
   val composedIO4: IO[String] = (io1, io3).parMapN(_ + _).handleError(_.getMessage) //.redeem(_.getMessage, identity)
-  val composedIO5: IO[String] = (IO(Thread.sleep(100)) *> io3, io4).parMapN(_ + _).handleError(_.getMessage) //.redeem(_.getMessage, identity)
+  val composedIO5: IO[String] = (IO.sleep(100.millis) *> io3, io4).parMapN(_ + _).handleError(_.getMessage) //.redeem(_.getMessage, identity)
 }
