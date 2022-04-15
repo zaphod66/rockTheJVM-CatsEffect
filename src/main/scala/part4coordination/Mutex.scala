@@ -93,7 +93,7 @@ object MutexRunner extends IOApp.Simple {
     _   <- IO(s"[task $id] ... got result $res").debug
   } yield res
 
-  def runNonLockingTasks(): IO[List[Int]] = (1 to 10).toList.parTraverse(id => createNonLockingTask(id))
+  def runNonLockingTasks(): IO[List[Int]] = (1 to 10).toList.parTraverse(createNonLockingTask)
 
   def createLockingTask(id: Int, mutex: Mutex): IO[Int] = for {
     _   <- IO(s"[task $id] waiting for permission...").debug
@@ -107,7 +107,7 @@ object MutexRunner extends IOApp.Simple {
 
   def runLockingTasks(): IO[List[Int]] = for {
     mut <- Mutex.create
-    res <- (1 to 10).toList.parTraverse(id => createLockingTask(id, mut))
+    res <- (1 to 10).toList.parTraverse(createLockingTask(_, mut))
   } yield res
 
   def createCancellingTask(id: Int, mutex: Mutex): IO[Int] = {
@@ -126,17 +126,17 @@ object MutexRunner extends IOApp.Simple {
 
   def runCancellingTasks(): IO[List[Int]] = for {
     mut <- Mutex.create
-    res <- (1 to 10).toList.parTraverse(id => createCancellingTask(id, mut))
+    res <- (1 to 10).toList.parTraverse(createCancellingTask(_, mut))
   } yield res
 
   override def run: IO[Unit] =
     IO("Mutex").debug *>
-      IO("1-----------").debug *>
-      runNonLockingTasks().debug *>
-      IO("2-----------").debug *>
-      runLockingTasks().debug *>
-      IO("3-----------").debug *>
-      runCancellingTasks().debug *>
-      IO("4-----------").debug *>
-      IO.unit
+    IO("1-----------").debug *>
+    runNonLockingTasks().debug *>
+    IO("2-----------").debug *>
+    runLockingTasks().debug *>
+    IO("3-----------").debug *>
+    runCancellingTasks().debug *>
+    IO("4-----------").debug *>
+    IO.unit
 }

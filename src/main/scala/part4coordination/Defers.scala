@@ -1,7 +1,6 @@
 package part4coordination
 
 import cats.effect.{Deferred, FiberIO, IO, IOApp, OutcomeIO, Ref}
-import jdk.internal.misc.Signal
 import utils._
 
 import scala.concurrent.duration.*

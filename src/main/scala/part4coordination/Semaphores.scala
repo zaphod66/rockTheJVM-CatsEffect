@@ -17,7 +17,9 @@ object Semaphores extends IOApp.Simple {
   def schedule(id: Int, sem: Semaphore[IO]): IO[Int] = for {
     _   <- IO(s"[session $id] waiting for access").debug
     _   <- sem.acquire
-    _   <- IO(s"[session $id] access acquired").debug
+    a   <- sem.available
+    c   <- sem.count
+    _   <- IO(s"[session $id] access acquired ($c callers, $a available)").debug
     res <- doWork()
     _   <- IO(s"[session $id] releasing access").debug
     _   <- sem.release
