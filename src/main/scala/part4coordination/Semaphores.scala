@@ -30,27 +30,27 @@ object Semaphores extends IOApp.Simple {
     tasks.reduce(IO.both(_, _).void)
   }
 
-  def tasks(sem: Semaphore[IO]): List[IO[Unit]] = (1 to 10).map(i => schedule(i, sem).void).toList
-  def task2(sem: Semaphore[IO]): List[IO[Int]] = (1 to 10).map(i => schedule(i, sem)).toList
+  def tasks1(sem: Semaphore[IO]): List[IO[Unit]] = (1 to 10).map(i => schedule(i, sem).void).toList
+  def tasks2(sem: Semaphore[IO]): List[IO[Int]] = (1 to 10).map(i => schedule(i, sem)).toList
 
-  import cats.syntax.parallel._
-  val ddd: IO[Any] = for {
+  val scheduledTasks1: IO[Unit] = for {
     sem <- semaphore
-    sss <- task2(sem).parSequence
-  } yield sss
-
-  val scheduledTasks: IO[Unit] = for {
-    sem <- semaphore
-    ts = tasks(sem)
+    ts = tasks1(sem)
     _   <- reduceAll(ts)
   } yield ()
 
+  import cats.syntax.parallel._
+  val scheduledTasks2: IO[List[Int]] = for {
+    sem <- semaphore
+    res <- tasks2(sem).parSequence
+  } yield res
+
   override def run: IO[Unit] =
     IO("Semaphores").debug *>
-    IO("-----------").debug *>
-    scheduledTasks *>
-    IO("-----------").debug *>
-    ddd.debug *>
-    IO("-----------").debug *>
+    IO("1----------").debug *>
+    scheduledTasks1 *>
+    IO("2----------").debug *>
+    scheduledTasks2.debug *>
+    IO("3----------").debug *>
     IO.unit
 }
