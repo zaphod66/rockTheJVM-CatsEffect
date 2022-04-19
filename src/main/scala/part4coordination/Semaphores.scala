@@ -10,19 +10,26 @@ import utils.debug
 
 object Semaphores extends IOApp.Simple {
 
-  val semaphore: IO[Semaphore[IO]] = Semaphore[IO](2)   // two permits
+  val semaphore: IO[Semaphore[IO]] = Semaphore[IO](3)
 
   def doWork(): IO[Int] = IO.sleep(200.millis + Random.nextInt(200).millis) *> IO(Random.nextInt(100))
 
   def schedule(id: Int, sem: Semaphore[IO]): IO[Int] = for {
-    _   <- IO(s"[session $id] waiting for access").debug
+    a0  <- sem.available
+    c0  <- sem.count
+    _   <- IO(s"[session $id] acquiring access ($c0 callers, $a0 available)").debug
     _   <- sem.acquire
-    a   <- sem.available
-    c   <- sem.count
-    _   <- IO(s"[session $id] access acquired ($c callers, $a available)").debug
+    a1  <- sem.available
+    c1  <- sem.count
+    _   <- IO(s"[session $id] access acquired ($c1 callers, $a1 available)").debug
     res <- doWork()
-    _   <- IO(s"[session $id] releasing access").debug
+    a2  <- sem.available
+    c2  <- sem.count
+    _   <- IO(s"[session $id] releasing access ($c2 callers, $a2 available)").debug
     _   <- sem.release
+    a3  <- sem.available
+    c3  <- sem.count
+    _   <- IO(s"[session $id] access released ($c3 callers, $a3 available)").debug
     _   <- IO(s"[session $id] produced $res").debug
   } yield res
 
