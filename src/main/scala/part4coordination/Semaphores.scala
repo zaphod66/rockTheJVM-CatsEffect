@@ -52,6 +52,14 @@ object Semaphores extends IOApp.Simple {
     res <- tasks2(sem).parSequence
   } yield res
 
+  val mutex: IO[Semaphore[IO]] = Semaphore[IO](1)
+
+  val scheduledTasks3: IO[List[Int]] = mutex.flatMap { sem =>
+    (1 to 10).toList.parTraverse { id =>
+      schedule(id, sem)
+    }
+  }
+
   override def run: IO[Unit] =
     IO("Semaphores").debug *>
     IO("1----------").debug *>
@@ -59,5 +67,7 @@ object Semaphores extends IOApp.Simple {
     IO("2----------").debug *>
     scheduledTasks2.debug *>
     IO("3----------").debug *>
+    scheduledTasks3.debug *>
+    IO("4----------").debug *>
     IO.unit
 }
