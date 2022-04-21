@@ -1,7 +1,7 @@
 package part4coordination
 
 import cats.effect.std.CountDownLatch
-import cats.effect.{IO, IOApp, Resource}
+import cats.effect.{Deferred, IO, IOApp, Ref, Resource}
 import cats.syntax.parallel.*
 import cats.syntax.traverse.*
 
@@ -31,12 +31,38 @@ object CountDownLatches extends IOApp.Simple {
     _ <- IO(s"[worker $id] working...").debug
   } yield ()
 
-  val num = 5
+  val num = 3
 
   def runner(): IO[Unit] = for {
     latch <- CountDownLatch[IO](num)
     starterFib <- starter(latch, num).start
     _ <- (1 to 10).toList.parTraverse(id => worker(id, latch))
+    _ <- starterFib.join
+  } yield ()
+
+  // same using MyCountDownLatch
+
+  def starter2(latch: MyCountDownLatch, num: Int): IO[Unit] = for {
+    _ <- IO("Starting...").debug
+    _ <- (num to 1 by -1).toList.traverse { i =>
+      for {
+        _ <- IO(s"$i ...").debug *> IO.sleep(500.millis)
+        _ <- latch.release
+      } yield ()
+    }
+    _ <- IO("Go!").debug
+  } yield ()
+
+  def worker2(id: Int, latch: MyCountDownLatch): IO[Unit] = for {
+    _ <- IO(s"[worker $id] waiting for signal...").debug
+    _ <- latch.await
+    _ <- IO(s"[worker $id] working...").debug
+  } yield ()
+
+  def runner2(): IO[Unit] = for {
+    latch <- MyCountDownLatch(num)
+    starterFib <- starter2(latch, num).start
+    _ <- (1 to 10).toList.parTraverse(id => worker2(id, latch))
     _ <- starterFib.join
   } yield ()
 
@@ -50,7 +76,14 @@ object CountDownLatches extends IOApp.Simple {
       "unk. And here are som",
       "e more amend",
       "ments!",
-      " This was cool!"
+      " This was cool!",
+      " | ",
+      "This is the end. Fr",
+      "om Sunrise Avenue.",
+      " Mo",
+      "na L",
+      "isa from M",
+      "ichelangelo."
     )
 
     def getNumChunks: IO[Int] = IO(fileChunks.length)
@@ -58,9 +91,9 @@ object CountDownLatches extends IOApp.Simple {
   }
 
   def writeToFile(path: String, content: String): IO[Unit] = {
-    val fileResources = Resource.make(IO(new FileWriter(new File(path))))(writer => IO(writer.close()))
+    val fileResource = Resource.make(IO(new FileWriter(new File(path))))(writer => IO(writer.close()))
 
-    fileResources.use { writer =>
+    fileResource.use { writer =>
       IO(writer.write(content))
     }
   }
@@ -81,8 +114,8 @@ object CountDownLatches extends IOApp.Simple {
     d = Random.nextInt(1000)
     _ <- IO(s"[task $id] downloading for $d ms.").debug
     _ <- IO.sleep(d.millis)
-    content <- FileServer.getFileChunk(id)
-    _ <- writeToFile(s"$destFolder/$fileName.part$id", content)
+    chunk <- FileServer.getFileChunk(id)
+    _ <- writeToFile(s"$destFolder/$fileName.part$id", chunk)
     _ <- IO(s"[task $id] chunk downloaded!").debug
     _ <- latch.release
   } yield ()
@@ -93,6 +126,7 @@ object CountDownLatches extends IOApp.Simple {
       _     <- IO(s"Download started on $num fibers").debug
       _     <- (0 until num).toList.parTraverse(id => downloadChunk(id, latch, fileName, destFolder))
       _     <- latch.await
+      _     <- writeToFile(s"$destFolder/$fileName", "")
       _     <- (0 until num).toList.traverse { i => appendFileContents(s"$destFolder/$fileName.part$i", s"$destFolder/$fileName")}
     } yield ()
 
@@ -101,7 +135,37 @@ object CountDownLatches extends IOApp.Simple {
     IO("1----------").debug *>
     runner() *>
     IO("2----------").debug *>
-    downloadFile("download.txt", "src/main/resources/") *>
+    runner2() *>
     IO("3----------").debug *>
+    downloadFile("download.txt", "src/main/resources/") *>
+    IO("4----------").debug *>
     IO.unit
+}
+
+abstract class MyCountDownLatch {
+  def await: IO[Unit]
+  def release: IO[Unit]
+}
+
+object MyCountDownLatch {
+
+  sealed trait State
+  case object Released extends State
+  case class Awaiting(remaining: Int, signal: Deferred[IO, Unit]) extends State
+
+
+
+  def apply(n: Int): IO[MyCountDownLatch] = for {
+    signal <- Deferred[IO, Unit]
+    state  <- Ref[IO].of[State](Awaiting(n, signal))
+  } yield new MyCountDownLatch {
+
+    override def await: IO[Unit] = signal.get
+
+    override def release: IO[Unit] = state.modify {
+      case Released            => Released -> IO.unit
+      case Awaiting(1, signal) => Released -> signal.complete(()).void
+      case Awaiting(n, signal) => Awaiting(n - 1, signal) -> IO.unit
+    }.flatten.uncancelable
+  }
 }
