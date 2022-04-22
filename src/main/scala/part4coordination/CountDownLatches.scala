@@ -33,7 +33,7 @@ object CountDownLatches extends IOApp.Simple {
 
   val num = 3
 
-  def runner(): IO[Unit] = for {
+  def runner1(): IO[Unit] = for {
     latch <- CountDownLatch[IO](num)
     starterFib <- starter(latch, num).start
     _ <- (1 to 10).toList.parTraverse(id => worker(id, latch))
@@ -42,27 +42,10 @@ object CountDownLatches extends IOApp.Simple {
 
   // same using MyCountDownLatch
 
-  def starter2(latch: MyCountDownLatch, num: Int): IO[Unit] = for {
-    _ <- IO("Starting...").debug
-    _ <- (num to 1 by -1).toList.traverse { i =>
-      for {
-        _ <- IO(s"$i ...").debug *> IO.sleep(500.millis)
-        _ <- latch.release
-      } yield ()
-    }
-    _ <- IO("Go!").debug
-  } yield ()
-
-  def worker2(id: Int, latch: MyCountDownLatch): IO[Unit] = for {
-    _ <- IO(s"[worker $id] waiting for signal...").debug
-    _ <- latch.await
-    _ <- IO(s"[worker $id] working...").debug
-  } yield ()
-
   def runner2(): IO[Unit] = for {
     latch <- MyCountDownLatch(num)
-    starterFib <- starter2(latch, num).start
-    _ <- (1 to 10).toList.parTraverse(id => worker2(id, latch))
+    starterFib <- starter(latch, num).start
+    _ <- (1 to 10).toList.parTraverse(id => worker(id, latch))
     _ <- starterFib.join
   } yield ()
 
@@ -133,16 +116,16 @@ object CountDownLatches extends IOApp.Simple {
   override def run: IO[Unit] =
     IO("CountDownLatches").debug *>
     IO("1----------").debug *>
-    runner() *>
+    runner1() *>
     IO("2----------").debug *>
     runner2() *>
     IO("3----------").debug *>
-    downloadFile("download.txt", "src/main/resources/") *>
-    IO("4----------").debug *>
+//    downloadFile("download.txt", "src/main/resources/") *>
+//    IO("4----------").debug *>
     IO.unit
 }
 
-abstract class MyCountDownLatch {
+abstract class MyCountDownLatch extends CountDownLatch[IO] {
   def await: IO[Unit]
   def release: IO[Unit]
 }
@@ -152,9 +135,7 @@ object MyCountDownLatch {
   sealed trait State
   case object Released extends State
   case class Awaiting(remaining: Int, signal: Deferred[IO, Unit]) extends State
-
-
-
+  
   def apply(n: Int): IO[MyCountDownLatch] = for {
     signal <- Deferred[IO, Unit]
     state  <- Ref[IO].of[State](Awaiting(n, signal))
@@ -163,9 +144,9 @@ object MyCountDownLatch {
     override def await: IO[Unit] = signal.get
 
     override def release: IO[Unit] = state.modify {
-      case Released            => Released -> IO.unit
-      case Awaiting(1, signal) => Released -> signal.complete(()).void
-      case Awaiting(n, signal) => Awaiting(n - 1, signal) -> IO.unit
+      case Released            => Released -> IO("already released").debug *> IO.unit
+      case Awaiting(1, signal) => Released -> IO("completing").debug *> signal.complete(()).void
+      case Awaiting(n, signal) => Awaiting(n - 1, signal) -> IO(s"releasing (${n - 1} left}").debug *> IO.unit
     }.flatten.uncancelable
   }
 }
