@@ -120,22 +120,19 @@ object CountDownLatches extends IOApp.Simple {
     IO("2----------").debug *>
     runner2() *>
     IO("3----------").debug *>
-//    downloadFile("download.txt", "src/main/resources/") *>
-//    IO("4----------").debug *>
+    downloadFile("download.txt", "src/main/resources/") *>
+    IO("4----------").debug *>
     IO.unit
 }
 
-abstract class MyCountDownLatch extends CountDownLatch[IO] {
-  def await: IO[Unit]
-  def release: IO[Unit]
-}
+abstract class MyCountDownLatch extends CountDownLatch[IO]
 
 object MyCountDownLatch {
 
   sealed trait State
   case object Released extends State
   case class Awaiting(remaining: Int, signal: Deferred[IO, Unit]) extends State
-  
+
   def apply(n: Int): IO[MyCountDownLatch] = for {
     signal <- Deferred[IO, Unit]
     state  <- Ref[IO].of[State](Awaiting(n, signal))
