@@ -20,8 +20,8 @@ object CancellingIOs extends IOApp.Simple {
 
   def canceller[T](io: IO[T], duration: FiniteDuration): IO[Unit] = for {
     fiber <- io.start
-    _ <- IO.sleep(duration) *> IO("attempting cancellation...").debug *> fiber.cancel
-    res <- fiber.join
+    _     <- IO.sleep(duration) *> IO("attempting cancellation...").debug *> fiber.cancel
+    _     <- fiber.join
   } yield ()
 
   val megaCancel: IO[Unit] = canceller(paymentSystem, 500.millis)
@@ -65,17 +65,21 @@ object CancellingIOs extends IOApp.Simple {
   override def run: IO[Unit] =
     IO("megaCancel----------").debug *>
     megaCancel *>
+    IO("atomicPaymentSystem1-----").debug *>
+    atomicPaymentSystem1 *>
+    IO("atomicPaymentSystem2-----").debug *>
+    atomicPaymentSystem2 *>
     IO("noCancel1-----------").debug *>
     noCancel1 *>
     IO("noCancel2-----------").debug *>
     noCancel2 *>
-    IO("authProg1 -----------").debug *>
+    IO("authProg1-----------").debug *>
     authProg1 *>
-    IO("authProg2 -----------").debug *>
+    IO("authProg2-----------").debug *>
     authProg2 *>
-    IO("authProg3 -----------").debug *>
+    IO("authProg3-----------").debug *>
     authProg3 *>
-    IO("threeStepProg -----------").debug *>
+    IO("threeStepProg-----------").debug *>
     threeStepProg *>
     IO.unit
 }

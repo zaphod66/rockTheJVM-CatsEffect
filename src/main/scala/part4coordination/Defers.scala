@@ -30,7 +30,7 @@ object Defers extends IOApp.Simple {
 
   import cats.syntax.traverse._
 
-  val fileParts = List("I ", "love S", "cala", " with Cat", "s Effect!<EOF>")
+  val fileParts: List[String] = List("I ", "love S", "cala", " with Cat", "s Effect!<EOF>")
 
   def notifierWithRef(): IO[Unit] = {
 
@@ -80,7 +80,7 @@ object Defers extends IOApp.Simple {
       _ <- IO.sleep(200.millis)
       c <- countRef.updateAndGet(_ + 1)
       _ <- IO(s"[tick] incremented counter to $c").debug
-      _ <- if (c == limit) IO("counter reached 10") *> signal.complete(()) else tick(countRef, signal)
+      _ <- if (c == limit) IO(s"counter reached $limit").debug *> signal.complete(()).void else tick(countRef, signal)
     } yield ()
 
     def wait(signal: Deferred[IO, Unit]): IO[Unit] = for {
