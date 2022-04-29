@@ -66,10 +66,7 @@ object PolymorphicCancellation extends IOApp.Simple {
 
   // --------------------------
 
-  import utils.general.debug
-
-  def unsafeSleep[F[_], E](duration: FiniteDuration)(using mc: MonadCancel[F, E]): F[Unit] =
-    mc.pure(Thread.sleep(duration.toMillis))
+  import utils.general.{ debug, unsafeSleep }
 
   def canceller[T](io: IO[T], duration: FiniteDuration): IO[Unit] = for {
     fiber <- io.start
