@@ -126,8 +126,8 @@ object PolymorphicCoordination extends IOApp.Simple {
     }
   }
 
-  val io1: IO[Int] = runWithSleep(42, 1.second)
-  val io2: IO[String] = runWithSleep("Name", 500.millis)
+  val io1: IO[Int] = runWithSleep(42, 200.millis)
+  val io2: IO[String] = runWithSleep("Name", 100.millis)
 
   def runMyRacePair[A, B](ioa: IO[A], iob: IO[B]): IO[Outcome[IO, Throwable, A] | Outcome[IO, Throwable, B]] = {
     val raceResult = myRacePair(ioa, iob)
@@ -182,7 +182,7 @@ object PolymorphicCoordination extends IOApp.Simple {
     IO("1-----------------------").debug *>
     alarmCounter[IO](3) *>
     IO("2-----------------------").debug *>
-    runMyRacePair(io1, io2) *>
+    runMyRacePair(io1, io2).debug *>
     IO("3-----------------------").debug *>
     runCancellingTasks().debug *>
     IO("4-----------------------").debug *>
