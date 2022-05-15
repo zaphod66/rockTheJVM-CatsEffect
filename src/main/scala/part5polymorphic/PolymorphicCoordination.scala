@@ -39,7 +39,7 @@ object MyMutex {
 
           state.modify {
             case State(false, _) => (State[F](locked = true, Queue.empty[Signal[F]]), concurrent.unit)
-            case State(true, q) => (State[F](locked = true, q.enqueue(signal)), poll(signal.get).onCancel(cleanup))
+            case State(true, q) => (State[F](locked = true, q.enqueueAll(Iterable.single(signal))), poll(signal.get).onCancel(cleanup))
           }.flatten
         }
       }
