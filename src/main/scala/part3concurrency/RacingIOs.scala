@@ -75,16 +75,20 @@ object RacingIOs extends IOApp.Simple {
     }
 
   override def run: IO[Unit] = {
+    IO("RacingIOs").debug *>
+    IO("1--------").debug *>
     testRace.debug.void *>
-      IO("1 -------").debug *>
-      testRacePair.void *>
-      IO("2 -------").debug *>
-      timeout(v1, 500.millis).handleError(_.getMessage).debug *>
-      IO("3 -------").debug *>
-      timeout(v1, 2.seconds) *>
-      IO("4 -------").debug *>
-      unrace(v1, v2).debug.void *>
-      IO("5 -------").debug *>
-      myRace(v1, v2).void
+    IO("2--------").debug *>
+    testRacePair.void *>
+    IO("3--------").debug *>
+    timeout(v1, 500.millis).handleError(_.getMessage).debug *>
+    IO("4--------").debug *>
+    timeout(v1, 2.seconds) *>
+    IO("5--------").debug *>
+    unrace(v1, v2).debug *>
+    IO("6--------").debug *>
+    myRace(v1, v2) *>
+    IO("7--------").debug *>
+    IO.unit
   }
 }

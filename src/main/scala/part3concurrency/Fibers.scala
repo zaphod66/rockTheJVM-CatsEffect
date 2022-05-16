@@ -9,12 +9,12 @@ import utils.debug
 object Fibers extends IOApp.Simple {
 
   def testCancel(): IO[Outcome[IO, Throwable, String]] = {
-    val task = IO("starting").debug >> IO.sleep(1.second) >> IO("done")
+    val task = IO("starting").debug *> IO.sleep(1.second) *> IO("done")
     val taskWithHandler = task.onCancel(IO("I'm being cancelled!").debug.void)
 
     for {
       fiber <- taskWithHandler.start
-      _ <- IO.sleep(500.millis) >> IO("cancelling").debug
+      _ <- IO.sleep(500.millis) *> IO("cancelling").debug
       _ <- fiber.cancel
       result <- fiber.join
     } yield result
@@ -33,7 +33,7 @@ object Fibers extends IOApp.Simple {
     }
   }
 
-  val testEx1 = IO("starting").debug >> IO.sleep(1.second) >> IO("done").debug >> IO(42)
+  val testEx1: IO[Int] = IO("starting").debug *> IO.sleep(1.second) *> IO("done").debug *> IO(42)
 
   def tupleIOs[A, B](ioa: IO[A], iob: IO[B]): IO[(A, B)] = {
     val resultIO = for {
@@ -54,9 +54,9 @@ object Fibers extends IOApp.Simple {
     }
   }
 
-  val testEx2 = {
-    val io1 = IO.sleep(1.second) >> IO(1).debug
-    val io2 = IO.sleep(2.seconds) >> IO(2).debug
+  val testEx2: IO[(Int, Int)] = {
+    val io1 = IO.sleep(1.second) *> IO(1).debug
+    val io2 = IO.sleep(2.seconds) *> IO(2).debug
 
     tupleIOs(io1, io2)
   }
@@ -64,7 +64,7 @@ object Fibers extends IOApp.Simple {
   def timeoutIO[A](io: IO[A], duration: FiniteDuration): IO[A] = {
     val resultIO = for {
       fib <- io.start
-      _ <- (IO.sleep(duration) >> fib.cancel).start
+      _ <- (IO.sleep(duration) *> fib.cancel).start
       result <- fib.join
     } yield result
 
@@ -75,14 +75,28 @@ object Fibers extends IOApp.Simple {
     }
   }
 
-  val testEx3 = {
-    val io = IO("starting").debug >> IO.sleep(1.second) >> IO("done").debug >> IO(42)
+  val testEx3: IO[Int] = {
+    val io = IO("starting").debug *> IO.sleep(1.second) *> IO("done").debug *> IO(42)
     timeoutIO(io, 5000.millis)
   }
 
+  val testEx4: IO[Int] = {
+    val io = IO("starting").debug *> IO.sleep(1.second) *> IO("done").debug *> IO(42)
+    timeoutIO(io, 500.millis)
+  }
+
   override def run: IO[Unit] =
-    testCancel().debug >>
-    testEx1.debug >>
-    testEx2.debug >>
-    testEx3.debug.void
+    IO("Fibers").debug *>
+    IO("1-----").debug *>
+    testCancel().debug *>
+    IO("2-----").debug *>
+    testEx1.debug *>
+    IO("3-----").debug *>
+    testEx2.debug *>
+    IO("4-----").debug *>
+    testEx3.debug *>
+    IO("5-----").debug *>
+    testEx4.handleError(_ => -1).debug *>
+    IO("6-----").debug *>
+    IO.unit
 }

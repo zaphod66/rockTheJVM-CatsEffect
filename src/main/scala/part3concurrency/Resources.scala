@@ -77,11 +77,20 @@ object Resources extends IOApp.Simple {
 
   override def run: IO[Unit] = {
     val fileName = "src/main/scala/part3concurrency/Resources.scala"
+    IO("Resources").debug *>
+    IO("1--------").debug *>
     conn1 *>
-      bracketProg *>
-      cancelEffect(readFile(fileName), 1.seconds) *>
-      cancelEffect(resourceReadFile(fileName), 1.seconds) *>
-      cancelEffect(useConnection1.void, 100.millis) *>
-      cancelEffect(useConnection2.void, 100.millis)
+    IO("2--------").debug *>
+    bracketProg *>
+    IO("3--------").debug *>
+    cancelEffect(readFile(fileName), 1.seconds) *>
+    IO("4--------").debug *>
+    cancelEffect(resourceReadFile(fileName), 1.seconds) *>
+    IO("5--------").debug *>
+    cancelEffect(useConnection1.void, 100.millis) *>
+    IO("6--------").debug *>
+    cancelEffect(useConnection2.void, 100.millis) *>
+    IO("7--------").debug *>
+    IO.unit
   }
 }

@@ -40,6 +40,12 @@ object Effects extends IOApp.Simple {
 
   override def run: IO[Unit] =
     IO.println("Effects") *>
-      IO.println(io.unsafeRun()) *>
-      IO.println(testMeasureIO()) *> IO(prog.unsafeRun())
+    IO.println("1------") *>
+    IO.println(io.unsafeRun()) *>
+    IO.println("2------") *>
+    IO.println(testMeasureIO()) *>
+    IO.println("3------") *>
+    IO(prog.unsafeRun()) *>
+    IO.println("4------") *>
+    IO.unit
 }
