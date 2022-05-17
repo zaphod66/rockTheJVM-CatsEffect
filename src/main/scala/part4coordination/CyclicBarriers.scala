@@ -18,29 +18,30 @@ object CyclicBarriers extends IOApp.Simple {
     _ <- IO(s"[worker $id] --> working...").debug
   } yield ()
 
-  def batch1(): IO[Unit] = for {
+  def batch(barrier: CyclicBarrier[IO]): IO[Unit] = for {
     _       <- IO("Start batching workers").debug
-    barrier <- CyclicBarrier[IO](5)
     _       <- (1 to 10).toList.parTraverse(worker(_, barrier))
     _       <- IO("Finished batching workers").debug
   } yield ()
 
+  def batch1(): IO[Unit] = for {
+    barrier <- CyclicBarrier[IO](5)
+    _       <- batch(barrier)
+  } yield ()
+
   def batch2(): IO[Unit] = for {
-    _       <- IO("Start batching workers").debug
     barrier <- MyCyclicBarrier(5)
-    _       <- (1 to 10).toList.parTraverse(worker(_, barrier))
-    _       <- IO("Finished batching workers").debug
+    _       <- batch(barrier)
   } yield ()
 
   override def run: IO[Unit] =
     IO("CyclicBarriers").debug *>
-    IO("1----------").debug *>
+    IO("1-------------").debug *>
     batch1() *>
-    IO("2----------").debug *>
+    IO("2-------------").debug *>
     batch2() *>
-    IO("3----------").debug *>
+    IO("3-------------").debug *>
     IO.unit
-
 }
 
 abstract class MyCyclicBarrier extends CyclicBarrier[IO]
@@ -55,11 +56,11 @@ object MyCyclicBarrier {
     signal <- createSignal()
     state  <- Ref[IO].of(State(n, signal))
   } yield new MyCyclicBarrier {
-    override def await: IO[Unit] = IO("...await").debug *> createSignal().flatMap { newSignal =>
+    override def await: IO[Unit] = IO("await ->").debug *> createSignal().flatMap { newSignal =>
       state.modify {
         case State(1, signal) => State(n, newSignal) -> signal.complete(()).void
         case State(n, signal) => State(n - 1, signal) -> signal.get // cancellation is NOT taken into account
-      }.flatten
+      }.flatten *> IO("<- await").debug.void
     }
   }
 }
