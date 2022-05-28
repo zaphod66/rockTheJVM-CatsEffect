@@ -17,10 +17,11 @@ object FreeMonad extends IOApp.Simple {
     def map[B](f: A => B): Free[M, B] = flatMap(a => pure(f(a)))
     def foldMap[G[_]: Monad](trans: M ~> G): G[A] = this match
       case Pure(a)        => Monad[G].pure(a)
-      case FlatMap(fa, f) => Monad[G].flatMap(fa.foldMap(trans))(a => f(a).foldMap(trans))
+      case FlatMap(ma, f) => Monad[G].flatMap(ma.foldMap(trans))(a => f(a).foldMap(trans))
       case Suspend(ma)    => trans(ma)
   }
 
+  
   object Free {
     def pure[M[_], A](a: A): Free[M, A] = Pure(a)
     def liftM[M[_], A](ma: M[A]): Free[M, A] = Suspend(ma)
