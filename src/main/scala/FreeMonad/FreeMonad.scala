@@ -51,7 +51,7 @@ object FreeMonad extends IOApp.Simple {
 
   // 3. business logic
   def program: DBMonad[Unit] = for {
-    _     <- create[String]("123", "Mona")
+    _     <- create[String]("123", "Jana")
     name1 <- read[String]("123")
     _     <- create[String]("456", name1.toUpperCase)
     _     <- delete("123")
@@ -74,6 +74,7 @@ object FreeMonad extends IOApp.Simple {
         for {
           _ <- IO(s"INSERT INTO people(id, name) VALUES ($k, $v);").debug
           _ = memDB += (k -> ser(v))
+          _ <- IO(memDB.toString()).debug
         } yield ()
       case Read(k) =>
         for {
@@ -85,12 +86,14 @@ object FreeMonad extends IOApp.Simple {
           _ <- IO(s"UPDATE people(name=$v) WHERE id=$k;").debug
           o = memDB(k)
           _ = memDB += (k -> ser(v))
+          _ <- IO(memDB.toString()).debug
           r = des[A](o)
         } yield r
       case Delete(k) =>
         for {
           _ <- IO(s"DELETE FROM people WHERE id=$k;").debug
           _ = memDB.remove(k)
+          _ <- IO(memDB.toString()).debug
         } yield ()
   }
 
@@ -103,8 +106,8 @@ object FreeMonad extends IOApp.Simple {
     IO("2--------").debug *>
     ioProgram *>
     IO("3--------").debug *>
-    IO(memDB.toString()).debug *>
-    IO("4--------").debug *>
+//    IO(memDB.toString()).debug *>
+//    IO("4--------").debug *>
     IO.unit
 
 }
