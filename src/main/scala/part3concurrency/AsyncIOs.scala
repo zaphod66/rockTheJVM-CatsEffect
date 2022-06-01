@@ -25,14 +25,14 @@ object AsyncIOs extends IOApp.Simple {
     computeSomething(id)()
   }.toEither
 
-  def asyncComputeIO[A](thunk: () => Either[Throwable, A])(tp: ExecutorService): IO[A] = IO.async_ { cb =>
-    tp.execute { () =>
+  def asyncComputeIO[A](thunk: () => Either[Throwable, A])(using ec: ExecutionContext): IO[A] = IO.async_ { cb =>
+    ec.execute { () =>
       val result = thunk()
       cb(result)
     }
   }
 
-  def asyncToIO[A](thunk: () => A)(ec: ExecutionContext): IO[A] = IO.async_ { cb =>
+  def asyncToIO[A](thunk: () => A)(using ec: ExecutionContext): IO[A] = IO.async_ { cb =>
     ec.execute { () =>
       val result = Try { thunk() }.toEither
       cb(result)
@@ -82,11 +82,29 @@ object AsyncIOs extends IOApp.Simple {
     }).flatten
   }
 
+  def demoAsync_Computation(id: Int, cancel: Boolean): IO[Int] = {
+    (for {
+      fib <- asyncToIO(computeSomething(id)).start
+      _   <- IO.sleep(500.millis) *> (if (cancel) IO("Cancelling!").debug *> fib.cancel else IO.unit)
+      out <- fib.join
+    } yield out match {
+      case Succeeded(v) => v
+      case Errored(_)   => IO(0)
+      case Canceled()   => IO(-1)
+    }).flatten
+  }
+
+  def timed[A](ioa: IO[A]): IO[(FiniteDuration, A)] = for {
+    start <- IO.realTime
+    a     <- ioa
+    end   <- IO.realTime
+  } yield (end.minus(start), a)
+
   override def run: IO[Unit] =
     IO("1---------").debug *>
-    asyncComputeIO(computeSomethingEither(1))(threadPool).debug *>
+    asyncComputeIO(computeSomethingEither(1)).debug *>
     IO("2---------").debug *>
-    asyncToIO(computeSomething(2))(ec).debug *>
+    asyncToIO(computeSomething(2)).debug *>
     IO("3---------").debug *>
     futureToIO(computeFuture).debug *>
     IO("4---------").debug *>
@@ -96,5 +114,12 @@ object AsyncIOs extends IOApp.Simple {
     IO("6---------").debug *>
     demoAsyncComputation(5, false).debug *>
     IO("7---------").debug *>
+    timed(demoAsync_Computation(6, true)).debug *>
+    IO("8---------").debug *>
+    timed(demoAsync_Computation(7, false)).debug *>
+//    demoAsync_Computation(7, false).timed.map { case (t, a) => (t.toMillis, a) }.debug *>
+    IO("9---------").debug *>
+    timed(IO(computeSomething(8)()).timeout(500.millis).handleError(_ => -2)).debug *>
+    IO("10--------").debug *>
     IO(threadPool.shutdown())
 }
